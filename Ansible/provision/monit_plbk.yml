@@ -1,0 +1,10 @@
+---
+  - hosts: all
+    remote_user: deploy_user
+    sudo: yes
+
+    vars_files:
+      - vars/defaults.yml
+
+    roles: 
+      - monit

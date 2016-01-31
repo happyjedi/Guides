@@ -1,0 +1,149 @@
+upstream {{ app_name }} {
+    server                      unix://{{deploy_directory}}/shared/tmp/sockets/puma_{{ app_name }}.sock;
+}
+
+server {
+    ### http://xakep.ru/2010/12/15/54168/  Лучший гайд по настройке безопасности
+
+    listen                  *:443 spdy; ## Т.к. у нас SSL то включим другой порт
+
+    server_name             www.{{webserver_name}};  ##rewrite ^ https://www.{{webserver_name}}$request_uri? permanent;  #301 redirect
+    root                    {{ deploy_directory }}/current/public;
+
+    limit_conn              addr 15; # Задаем максимальное количество одновременных соединений для одной сессии. По сути, это число задает максимальное количество соединений с одного IP
+    limit_req               zone=one burst=20 nodelay; ## со всплесками не более 15 запросов.
+
+    access_log              /dev/null;
+    error_log               /dev/null;
+
+    location / {
+        proxy_pass          http://{{ app_name }}; # match the name of upstream directive which is defined above
+        proxy_set_header    Host $http_host;
+        proxy_set_header    X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_redirect      off;
+        proxy_set_header    X-Real-IP  $remote_addr;
+        proxy_set_header    X-Forwarded-Proto $scheme; ##https;
+        ##proxy_set_header    X-Url-Scheme $scheme;
+        proxy_max_temp_file_size 0;
+
+        ## Yandex Metrika Permission for iFrame Webvisor
+        if ($http_referer !~ "^https?://([^/]+metrika.*yandex\.(ru|ua|com|com\.tr|by|kz)|([^/]+\.)?webvisor\.com)/"){
+            add_header X-Frame-Options SAMEORIGIN;
+        }
+    }
+
+    location /robots.txt {}
+
+    location ~* \.(js|css|png|jpg|jpeg|gif|ico|otf|eot|svg|ttf|woff|woff2)$ {
+        expires             1y;
+        log_not_found       off;
+    }
+
+    location ~ ^/(assets|images|javascripts|stylesheets|swfs|system)/ {
+        gzip_static         on;
+        expires             1y;
+        add_header          Cache-Control public;
+        add_header          Last-Modified "";
+        add_header          ETag "";
+        break;
+    }
+
+    ## Разрешим коннекты только к своему домену
+    if ($host !~ ^({{ webserver_name }}|www.{{ webserver_name }})$ ) {
+        return 444;
+    }
+
+    ## Ограничь количество доступных методов обращения к Web-серверу
+    if ($request_method !~ ^(GET|HEAD|POST)$ ) {
+        return 444;
+    }
+
+    # Блокируем менеджеры загрузки
+    if ($http_user_agent ~* LWP::Simple|BBBike|wget) {
+        return 403;
+    }
+    # Блокируем некоторые типы ботов
+    if ($http_user_agent ~* msnbot|scrapbot) {
+        return 403;
+    }
+
+    ## Блокируй Referrer-спам
+    if ( $http_referer ~* (babes|forsale|girl|jewelry|love|nudit|organic|poker|porn|sex|teen) )
+    {
+        return 403;
+    }
+
+    ## Блокируй хотлинк
+    #location /assets/ {
+    #    valid_referers none blocked www.{{ webserver_name }} {{ webserver_name }};
+    #    if ($invalid_referer) {
+    #        return 403;
+    #    }
+    #}
+    ##В качестве альтернативы ты можешь настроить сервер на отдачу специального баннера с сообщением о воровстве вместо запрашиваемого изображения. Для этого замени строку «return 403» на строку:
+    ##rewrite ^/images/uploads.*\.(gif|jpg|jpeg|png)$ http://{{ webserver_name }}/assets/banned.jpg last
+
+    # http://habrahabr.ru/post/172531/
+    # Правильная безопасная отдача файлов
+
+    proxy_set_header  X-Accel-Mapping {{ deploy_directory }}/shared/private=/private_files/;
+
+    location /private_files/ {
+        internal;
+        alias   {{ deploy_directory }}/shared/private;
+    }   
+}
+
+### Принудительное использование HTTPS
+server {
+    listen                  *:80;
+    server_name             www.{{webserver_name}};
+    # rewrite                 ^(.*) https://$host$request_uri? permanent;
+    access_log              /dev/null;
+    error_log               /dev/null;
+
+    return 301 https://$server_name$request_uri;  # enforce https
+
+    # location / {
+    #    rewrite ^(.*)$ https://$host$request_uri? permanent;
+    #    ##rewrite ^(.*)$ https://{{webserver_name}}$1 permanent;
+    #    ##rewrite ^(.*)$ https://{{webserver_name}}$request_uri? permanent;
+    #  }
+
+    # location ~ \.(php|html)$ {
+    #    deny                all;
+    # }
+    
+}
+
+### Принудительное использование HTTPS
+server {
+    listen                  *:80;
+    server_name             {{webserver_name}};
+    # rewrite                 ^(.*) https://$host$request_uri? permanent;
+    access_log              /dev/null;
+    error_log               /dev/null;
+
+    return 301 https://$server_name$request_uri;  # enforce https
+
+    # location / {
+    #    rewrite ^(.*)$ https://$host$request_uri? permanent;
+    #    ##rewrite ^(.*)$ https://{{webserver_name}}$1 permanent;
+    #    ##rewrite ^(.*)$ https://{{webserver_name}}$request_uri? permanent;
+    #  }
+
+    # location ~ \.(php|html)$ {
+    #    deny                all;
+    # }
+   
+}
+
+## http://stupid.su/nginx-ddos-protection/
+## http://habrahabr.ru/post/139931/  Модуль nginx для борьбы с DDoS
+## все запросы со значением заголовка Host, не соответствующего домену сайта будут записываться в log-файл, после чего соединение будет закрыто.
+server {
+    listen  80 default_server;
+    server_name "";
+        access_log /var/log/nginx/ddos_access_log.log;
+        return 444;
+}

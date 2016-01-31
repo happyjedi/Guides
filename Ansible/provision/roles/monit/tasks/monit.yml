@@ -1,0 +1,30 @@
+- name: install Monit
+  action: apt pkg=monit state=latest
+  tags:
+    - monit_install
+
+- name: make Monit conf.d directory
+  command: mkdir /etc/monit/conf.d
+  tags:
+    - monit_install
+
+- name: Copy Monit-puma Config file
+  template: src=etc_monit_conf.d_puma.monit.j2 dest=/etc/monit/conf.d/puma.monit  mode=0644 owner=root group=root force=yes
+  tags:
+    - monit_install
+    - monit_puma_conf
+
+- name: Copy Monit Config file
+  copy: src=monit.conf dest=/etc/init/monit.conf  mode=0644 owner=root group=root force=yes
+  tags:
+    - monit_install
+
+- name: reload-configuration
+  command: initctl reload-configuration
+  tags:
+    - monit_install
+
+- name: Start Monit
+  command: start monit
+  tags:
+    - monit_install

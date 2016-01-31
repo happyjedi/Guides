@@ -1,0 +1,79 @@
+# В файле ruby.yml у нас располагаются инструкции по установке необходимых пакетов системы
+# для последующей работы ruby.
+
+---
+# Обновление кеша и установка необходимых пакетов, всего программного обеспечения,
+# необходимого для работы нашего сервера
+- name: upgrade
+  action: apt update_cache=yes ##upgrade=yes
+
+- name: install ruby dependencies
+  action: apt pkg={{item}} state=installed
+  # with_items - это обычный цикл в Ansible, он возьмёт и прогонит все его элементы через action
+  with_items:
+    - build-essential
+    - git-core
+    - automake
+    - bison
+    - autoconf
+    - pkg-config
+    - libreadline6
+    - libreadline6-dev
+    - openssl
+    - libssl-dev
+    - curl
+    - subversion
+    - zlib1g
+    - zlib1g-dev
+    - libyaml-dev
+    - libsqlite3-dev
+    - libxml2-dev
+    - libxslt1-dev
+    - nodejs
+    - curl
+
+### Если при установке пакетов выдает ошибку что-то типа
+## W: GPG error: http://archive.canonical.com trusty Release: The following signatures couldn't be verified because the public key is not available: NO_PUBKEY 40976EAF437D05B5 NO_PUBKEY 3B4FE6ACC0B21F32
+## То нужно зайти по SSH на сервер и  выполнить следующие команды,
+## apt-get update
+## И команды по добавлению соответстующих ключей
+## sudo apt-key adv --recv-keys --keyserver keyserver.ubuntu.com 3B4FE6ACC0B21F32
+## Затем опять
+## apt-get update
+
+
+# Install correct version of ruby from source
+- name: ruby-from-src | ensure directory temporary ruby download directory is present
+  file: state=directory path={{rubyTmpDir}}
+  tags:
+    - ruby_install
+
+- name: ruby-from-src | Download ruby source
+  get_url: url={{rubyUrl}} dest={{rubyTmpDir}}
+  tags:
+    - ruby_install
+
+- name: ruby-from-src | ensure ruby is extracted
+  command: tar -xf {{rubyCompressedFile}} chdir={{rubyTmpDir}} creates={{tmpRubyPath}}
+  tags:
+    - ruby_install
+
+- name: ruby-from-src | ensure ruby is configured
+  command: ./configure chdir={{tmpRubyPath}} creates={{tmpRubyPath}}/Makefile
+  tags:
+    - ruby_install
+
+- name: ruby-from-src | ensure ruby is compiled
+  command: make chdir={{tmpRubyPath}} creates={{tmpRubyPath}}/ruby
+  tags:
+    - ruby_install
+
+- name: ruby-from-src | ensure ruby is installed
+  command: make install chdir={{tmpRubyPath}} creates=/usr/local/bin/ruby
+  tags:
+    - ruby_install
+
+- name: Install Bundler
+  command: gem install bundler
+  tags:
+    - ruby_install

@@ -1,0 +1,20 @@
+# config/puma.rb
+threads 1, {{ max_threads }}
+workers {{ max_workers }}
+preload_app!
+
+on_worker_boot do
+  require "active_record"
+  cwd = File.dirname(__FILE__)+"/../.."
+  ActiveRecord::Base.connection.disconnect! rescue ActiveRecord::ConnectionNotEstablished
+  ActiveRecord::Base.establish_connection(ENV["DATABASE_URL"] || YAML.load_file("{{deploy_directory}}/shared/config/database.yml")["production"])
+end
+
+bind 'unix://{{deploy_directory}}/shared/tmp/sockets/puma_{{ app_name }}.sock'
+environment 'production'
+pidfile "{{ pid_directory }}/puma.pid"
+state_path "{{deploy_directory}}/shared/tmp/sockets/puma.state"
+
+rackup '{{deploy_directory}}/current/config.ru'
+
+activate_control_app

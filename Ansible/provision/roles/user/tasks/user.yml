@@ -1,0 +1,91 @@
+---
+  ####### From
+  ### https://github.com/gerhard/ansible-docker/blob/master/roles/base/tasks/main.yml
+  - name: create deploy user
+    user: name={{ user }} groups="sudo" comment="deploy user" generate_ssh_key=yes ssh_key_bits=2048 state=present password={{ user_password }} shell="/bin/bash"
+    tags:
+      - newuser
+
+ ## Копируем публичный ключ локальной машины откуда запускаем наш плейбук в
+ ## authorized_keys – это позволит нам заходить на целевую машину без пароля.
+ ## можно предварительно их создать у себя командой ssh-keygen -t rsa -b 2048 -f $HOME/.ssh/id_rsa
+ ## chmod 600 key_name
+ ## Авторизоваться можно ssh -i '/home/user/.ssh/key_name' user@server-ip
+  - name: copy my local ssh key to the user's .ssh directory on VDS
+    action: template src={{ my_current_machine_pub }} dest="{{ home_dir }}/.ssh/authorized_keys" mode=0700 owner={{ user }} group={{ user }}
+
+  - name: copy known hosts to deploy user
+    action: template src=known_hosts dest="{{ home_dir }}/.ssh/known_hosts" owner={{ user }} group={{ user }}
+
+  ##Копируем ключи для нашего пользователя, чтобы он мог работать с гитхабом, битбакетом
+  ## На самих ресурсах эти ключи можно добавить в разделе SSH keys, где потребуется указать сам код ключа
+  ## Это можно сделать с помощью команды   xclip -sel clip < ~/.ssh/id_rsa_deploy.pub , которая поместит код ключа в буфер обмена
+  ## Затем добавляем его в ssh-agent , введя пароль, указанный при его создании
+  ## ssh-add ~/.ssh/id_rsa_deploy
+  ## ssh-copy-id root@255.255.255.255
+  ## проверить соединение можно командой ssh -T git@github.com  или ssh -T git@bitbucket.org  или  ssh -T git@heroku.com
+  ## В итоге вы должны будете увидеть что-то вроде
+  ##  Hi username! You've successfully authenticated, but GitHub does not provide shell access.
+  ## Или   shell request failed on channel 0   в случае с heroku
+  ## В случае с heroku может выйти сообщение об ошибке доступа Permission denied (publickey).
+  ## тогда нужно ввести команду heroku keys:add ~/.ssh/id_rsa_deploy.pub
+
+  ### Для более подробного вывода информации о соединении, нужно использовать ключ -vT
+  #- name: copy bitbucket private key to VDS
+   # action: template src={{ deploy_rsa }} dest="{{home_dir}}/.ssh/{{ deploy_rsa }}" owner={{ user }} group={{ user }}
+
+  - name: copy deploy public key to VDS
+    action: template src={{ deploy_rsa_pub }} dest="{{home_dir}}/.ssh/{{ deploy_rsa_pub }}" owner={{ user }} group={{ user }} mode=0600
+
+ ## Копируем ssh_config, опять же для работы с гитхабом, битбакетом
+  - name: copy ssh_config bitbucket
+    action: template src=ssh_config dest="{{ home_dir }}/.ssh/config" owner={{ user }} group={{ user }}
+
+  - name: Sudoers don't need a password
+    lineinfile: "dest=/etc/sudoers regexp='^%sudo' line='%sudo ALL=(ALL) NOPASSWD:ALL' validate='visudo -cf %s'"
+
+  - name: Sudoers have their ssh agent forwarded
+    copy: src=sudo_forward_ssh_agent dest=/etc/sudoers.d/sudo_forward_ssh_agent mode=0660 owner=root group=root validate='visudo -cf %s'
+
+## Это не нужно, мы закидываем свой файл с локальной машины
+#  - name: Add github.com to known hosts
+#    sshknownhosts: host=github.com state=present
+#
+#  - name: Add bitbucket.org to known hosts
+#    sshknownhosts: host=bitbucket.org state=present
+#
+#  - name: Add heroku to known hosts
+#    sshknownhosts: host=heroku.com state=present
+
+  - name: Make nano the default editor
+    copy: src=default_editor.sh dest=/etc/profile.d/default_editor.sh mode=0644 owner=root group=root
+
+  - name: Set RAILS_ENV=production
+    lineinfile: "dest=/home/{{ user }}/.bashrc" line="export RAILS_ENV=production"
+
+  - name: Set RACK_ENV=production
+    lineinfile: "dest=/home/{{ user }}/.bashrc" line="export RACK_ENV=production"
+
+  - name: Set LANG=ru_RU.UTF-8
+    lineinfile: "dest=/home/{{ user }}/.bashrc" line="export LANG=ru_RU.UTF-8"
+
+  - name: Set LANGUAGE=ru_RU.UTF-8
+    lineinfile: "dest=/home/{{ user }}/.bashrc" line="export LANGUAGE=ru_RU.UTF-8"
+
+  - name: Set LC_ALL=ru_RU.UTF-8
+    lineinfile: "dest=/home/{{ user }}/.bashrc" line="export LC_ALL=ru_RU.UTF-8"
+
+  - name: Set RAILS_ENV=production
+    lineinfile: "dest=/home/{{ user }}/.profile" line="export RAILS_ENV=production"
+
+  - name: Set RACK_ENV=production
+    lineinfile: "dest=/home/{{ user }}/.profile" line="export RACK_ENV=production"
+
+  - name: Set LANG=ru_RU.UTF-8
+    lineinfile: "dest=/home/{{ user }}/.profile" line="export LANG=ru_RU.UTF-8"
+
+  - name: Set LANGUAGE=ru_RU.UTF-8
+    lineinfile: "dest=/home/{{ user }}/.profile" line="export LANGUAGE=ru_RU.UTF-8"
+
+  - name: Set LC_ALL=ru_RU.UTF-8
+    lineinfile: "dest=/home/{{ user }}/.profile" line="export LC_ALL=ru_RU.UTF-8"

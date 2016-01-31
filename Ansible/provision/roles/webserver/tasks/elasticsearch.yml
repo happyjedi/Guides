@@ -1,0 +1,90 @@
+## Download  and install latest version of JavaSE Development Kit
+
+
+
+- name: JDK-from-repo | added python-software-properties
+  command: sudo apt-get install  python-software-properties -y && sudo dpkg-reconfigure python-software-properties
+  tags:
+    - jdk_install
+
+- name: JDK-from-repo | get add-apt-repository.sh.txt
+  command: wget http://xaxatyxa.ru/download/add-apt-repository.sh.txt
+  tags:
+    - jdk_install
+
+- name: JDK-from-repo | copied add-apt-repository.sh.txt to /usr/sbin
+  command: sudo cp add-apt-repository.sh.txt /usr/sbin/add-apt-repository
+  tags:
+    - jdk_install
+
+- name: JDK-from-repo | changed chmod for add-apt-repository
+  command: sudo chmod o+x /usr/sbin/add-apt-repository
+  tags:
+    - jdk_install
+
+- name: JDK-from-repo | changed chown for add-apt-repository
+  command: sudo chown root:root /usr/sbin/add-apt-repository
+  tags:
+    - jdk_install
+
+- name: JDK-from-repo | added repository
+  command: sudo add-apt-repository ppa:webupd8team/java
+  tags:
+    - jdk_install
+
+- name: JDK-from-repo | update repo status
+  command: sudo apt-get update
+  tags:
+    - jdk_install
+
+- name: JDK-from-repo | install from repo
+  command: sudo apt-get install oracle-java8-installer
+  tags:
+    - jdk_install
+
+## Download  and install latest version of Elastic Search
+## https://github.com/asyncee/elasticsearch-russian-config
+
+- name: elastic-from-src | Download elastic source
+  get_url: url={{elastic_tar_url}} dest={{elasticTmpDir}}
+  tags:
+    - elastic_install
+
+- name: elastic-from-src | ensure Elastic is extracted
+  command: tar -xf {{elasticCompressedFile}} chdir={{elasticTmpDir}} creates={{ElasticPath}}
+  tags:
+    - elastic_install
+
+- name: elastic-from-src | changed chown for elastic folder
+  command: sudo chown {{ user }}:{{ user }} {{ElasticPath}}
+  tags:
+    - elastic_install
+
+- name: elastic-from-src | changing dir
+  command: "cd {{ElasticPath}}"
+  tags:
+    - elastic_install
+
+- name: elastic-from-src | install plugin for russian morphology
+  command: "bin/plugin install {{elasticPluginUrl}}"
+  tags:
+    - elastic_install
+
+- name: elastic-from-src | install HQ plugin
+  command: "bin/plugin install {{elasticHQPluginUrl}}"
+  tags:
+    - elastic_install
+
+- name: elastic-from-src | copy config files to server
+  copy: src=elasticsearch.yml dest={{ElasticPath}}/config/elasticsearch.yml mode=0644 owner={{ user }} group={{ user }} force=yes
+  tags:
+    - elastic_install
+
+- name: elastic-from-src | copy config files to server
+  copy: src=logging.yml dest={{ElasticPath}}/config/logging.yml mode=0644 owner={{ user }} group={{ user }} force=yes
+  tags:
+    - elastic_install
+
+
+
+

@@ -1,0 +1,28 @@
+# В файле bluepill.yml у нас располагаются инструкции по установке пакета мониторинга процессов системы
+# с возможностью их перезапуска при падении и автозагрузке при перезапуске сервера
+
+---
+  - name: bluepill install | Install gem file
+    command: gem install bluepill
+    tags:
+      - bluepillinstall
+
+  - name: bluepill install | create directory for run files
+    file: path=/var/run/bluepill group={{ user }} owner={{ user }} state=directory
+    tags:
+      - bluepillinstall
+
+  - name: bluepill config | copy bluepill config file to application directory
+    action: template src=bluepill.rb.j2 dest={{ config_directory }}/bluepill.rb owner={{ user }} group={{ user }} force=yes mode=664
+    tags:
+      - bluepillconfig
+
+  - name: bluepill config | copy bluepill config file to Upstart unix folder for Autostarting
+    action: template src=etc_init_bluepill_config.conf.j2 dest=/etc/init/bluepill_config.conf owner={{ user }} group={{ user }} force=yes mode=664
+    tags:
+      - bluepillconfig
+
+  - name: bluepill install | Start process
+    command: start bluepill_config
+    tags:
+      - bluepillconfig

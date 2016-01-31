@@ -1,0 +1,30 @@
+- name: Add puma-manager
+  template: src=puma-manager.j2 dest=/etc/init/puma-manager.conf force=yes mode=664
+  tags: puma
+
+- name: Add puma config
+  template: src=etc_puma.conf.j2 dest=/etc/puma.conf force=yes mode=664
+  tags: puma
+
+- name: Add puma init script
+  template: src=etc_init_puma.j2 dest=/etc/init/puma.conf force=yes mode=664
+  tags: puma
+  ####https://github.com/dodecaphonic/ansible-rails-app/blob/master/roles/webserver/tasks/deploy.yml
+  ###template: src=usr_local_bin_run-puma.j2 dest=/usr/local/bin/run-puma force=yes mode=664
+  ##template: src=etc_init_d_puma.j2 dest=/etc/init.d/puma force=yes mode=664
+
+- name: Add puma production.rb to shared/config
+  template: src=puma_production.j2 dest={{ config_directory }}/puma/production.rb force=yes mode=664
+  tags: puma
+
+- name: Add puma.rb to shared/config
+  template: src=puma_production.j2 dest={{ config_directory }}/puma.rb force=yes mode=664
+  tags: puma
+
+- name: Make shared/tmp/sockets
+  file: path={{ tmp_directory }}/sockets group={{ user }} owner={{ user }} state=directory
+  tags: puma
+
+#- name: Restart puma-manager
+#  action: service name=puma-manager state=restarted
+#  tags: puma

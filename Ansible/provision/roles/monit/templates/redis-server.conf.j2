@@ -1,0 +1,10 @@
+#!upstart
+description "Redis Server"
+
+env USER={{ user }}
+
+start on runlevel [2345]
+stop on runlevel [016]
+
+respawn
+exec start-stop-daemon --start --make-pidfile --pidfile {{ redis_dir }}/redis.pid --chuid $USER --exec /usr/local/bin/redis-server /etc/redis/redis.conf >> {{ deploy_directory }}/shared/log/redis.log 2>&1

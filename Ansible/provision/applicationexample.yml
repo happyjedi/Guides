@@ -1,0 +1,43 @@
+- include: user_plbk.yml
+- include: webserver_plbk.yml
+- include: database_plbk.yml
+- include: redis_plbk.yml
+- include: bluepill_plbk.yml
+##- include: monit_plbk.yml
+
+##cd config/provision && ansible-playbook -i webservers applicationexample.yml -K --verbose
+
+
+##### Instructions for install application server !!##############
+## rake secret
+##
+## source /data/.rvm/scripts/rvm
+## rvm use 2.1.5@applicationset
+# ansible-playbook -i webservers applicationexample.yml --verbose --limit caravan
+#####################################
+
+######### Deploy commands
+## bundle exec cap git:deploy
+## bundle exec cap production deploy
+## bundle exec cap deploy:compile_assets
+#####################
+
+### http://docs.ansible.com/playbooks_best_practices.html
+### https://guides.spreecommerce.com/developer/ansible-ubuntu.html
+## https://github.com/radar/ansible-rails-app
+## https://github.com/redde/ansible-rails-stack  + Vagrant
+
+## Checking playbooks
+## ansible-playbook -i webservers user_plbk.yml --verbose --check
+## ansible-playbook -i webservers webserver_plbk.yml --verbose --check
+## ansible-playbook -i webservers database_plbk.yml --verbose --check
+## ansible-playbook -i webservers redis_plbk.yml --verbose --check
+## ansible-playbook -i webservers monit_plbk.yml --verbose --check
+
+## ansible-playbook -i webservers user_plbk.yml --verbose
+## ansible-playbook -i webservers database_plbk.yml --skip-tags "backup" --verbose
+## ansible-playbook -i webservers user_plbk.yml --verbose --tags "newuser"  --limit amazon --check
+
+## cd ~/application_example/config/provision/ && ansible-playbook -i webservers bluepill_plbk.yml --verbose --tags "bluepill_config"
+
+

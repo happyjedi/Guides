@@ -1,0 +1,74 @@
+- name: Install app dependencies
+  action: apt pkg={{item}} state=installed
+  with_items:
+    - libpq-dev
+    - vim
+    - htop
+    - nload
+    - gawk
+    - sqlite3
+    - libgdbm-dev
+    - libncurses5-dev
+    - libtool
+    - libffi-dev
+    - libcurl3
+    - libcurl4-openssl-dev
+    - python-psycopg2
+    - postfix
+    - imagemagick
+    - libmagickwand-dev
+    - nano
+    - mc
+
+# После установки приложений следуют инструкции по подготовке директории
+# где будет располагаться приложение. Будут созданы директории shared и shared/config
+# относительно переменной deploy_directory которая описана в файле vars/defaults.yml
+
+- name: Create deployment directory for application
+  file: path={{ deploy_directory }} owner={{ user }} group={{ user }} state=directory
+  tags:
+    - deploy_directory
+
+- name: Remove the config symlink, if exists
+  command: rm -rf {{ deploy_directory }}/shared/config
+  tags:
+    - deploy_directory
+
+- name: Create shared directory for  application
+  file: path={{ deploy_directory }}/shared owner={{ user }} group={{ user }} state=directory
+  tags:
+    - deploy_directory
+
+- name: Make shared directories for  application
+  file: path={{ deploy_directory }}/shared/{{item}} group={{ user }} owner={{ user }} state=directory
+  with_items:
+    - tmp
+    - log
+    - private
+    - public
+    - bundle
+    - bin
+    - config
+    - config/puma
+    - config/initializers
+  tags:
+    - shared
+
+- name: Make directory for application download files
+  file: path={{ deploy_directory }}/shared/private mode=0740 group={{ user }} owner={{ user }} state=directory
+  tags:
+    - deploy_directory
+  ## chmod -R u=rw,g=r private  ##https://ru.wikipedia.org/wiki/Chmod
+
+## Cкопируем файлик database.yml в директорию
+## shared/config, который мы предварительно положим в папку roles/webserver/templates/
+- name: copy database.yml to config directory for application
+  action: template src=database.yml.j2 dest={{ deploy_directory }}/shared/config/database.yml force=yes mode=0700 owner={{ user }} group={{ user }}
+  tags:
+    - sharedfiles
+
+## Cкопируем файлик secrets.yml в директорию shared/config
+- name: copy secrets.yml to config directory for application
+  action: template src=secrets.yml.j2 dest={{ deploy_directory }}/shared/config/secrets.yml force=yes mode=0700 owner={{ user }} group={{ user }}
+  tags:
+    - secretfiles

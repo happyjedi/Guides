@@ -1,0 +1,5 @@
+- include: ruby.yml tags=ruby
+- include: deploy.yml tags=deploy
+- include: puma.yml tags=puma
+- include: nginx.yml tags=nginx
+- include: elasticsearch.yml tags=elastic

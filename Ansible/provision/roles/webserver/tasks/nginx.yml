@@ -1,0 +1,74 @@
+##Здесь мы копируем заранее подготовленный конфигурационный файл, который находится здесь
+## roles/webserver/templates/ Данный файл у нас описан с помощью шаблонизатора jinja2
+## имеет вид: etc_nginx_sites-available_yourdomain.com.conf.j2
+
+- name: Install nginx
+  apt: pkg=nginx state=latest
+
+- name: Remove the default app
+  command: rm -rf /etc/nginx/sites-enabled/default
+
+- name: Remove the app's symlink, if exists
+  command: rm -rf /etc/nginx/sites-enabled/{{ app_name }}
+  tags:
+    - new_site_enable
+
+##http://wiki.enchtex.info/howto/nginx_ssl
+- name: Make SSL directories for application
+  file: path=/etc/nginx/sites-available/ssl group={{ user }} owner={{ user }} state=directory mode=0700
+  tags:
+    - ssl
+
+- name: Copy SSL certificate file to server
+  copy: src={{ ssl_srv_cert }} dest="/etc/nginx/sites-available/ssl/{{ ssl_srv_cert }}" mode=0644 owner={{ user }} group={{ user }}
+  tags:
+    - ssl
+
+- name: Copy SSL private key file to server
+  copy: src={{ ssl_private_key }} dest="/etc/nginx/sites-available/ssl/{{ ssl_private_key }}" mode=0644 owner={{ user }} group={{ user }}
+  tags:
+    - ssl
+
+- name: Copy SSL public csr file to server
+  copy: src={{ ssl_public_csr }} dest="/etc/nginx/sites-available/ssl/{{ ssl_public_csr }}" mode=0644 owner={{ user }} group={{ user }}
+  tags:
+    - ssl
+
+- name: Copy SSL password file
+  template: src=pswfile.j2 dest=/home/{{user}}/keys/pswfile mode=0644 owner={{ user }} group={{ user }} force=yes
+  tags:
+    - ssl
+
+- name: Configure nginx for the app 1 - etc_nginx_sites-available
+  template: src=etc_nginx_sites-available_{{ app_name }}.conf.j2 dest=/etc/nginx/sites-available/{{ app_name }} group=www-data owner=www-data force=yes
+  tags:
+    - new_site_enable
+    - nginx_conf
+
+- name: Configure nginx for the app 2 - etc_nginx.conf
+  template: src=etc_nginx.conf.j2 dest=/etc/nginx/nginx.conf group=www-data owner=www-data force=yes
+  tags:
+    - nginx_conf
+
+- name: Copy SSL /etc/sysctl.conf to server
+  copy: src=sysctl.conf dest=/etc/sysctl.conf mode=0644 owner=root group=root force=yes
+  tags:
+    - sysctl
+
+- name: Enable the app
+  command: sysctl -p
+  tags:
+    - sysctl
+
+- name: Enable the app
+  command: ln -s /etc/nginx/sites-available/{{ app_name }} /etc/nginx/sites-enabled/{{ app_name }}
+  tags:
+    - new_site_enable
+    - nginx_conf
+
+- name: Restart nginx
+  #command: service nginx restart
+  action: service name=nginx state=restarted
+  tags:
+    - nginxrestart
+    - nginx_conf

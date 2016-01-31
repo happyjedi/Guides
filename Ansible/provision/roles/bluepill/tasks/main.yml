@@ -1,0 +1,4 @@
+- include: bluepill.yml
+  tags:
+    - bluepillconfig
+    - bluepillinstall

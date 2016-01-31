@@ -1,0 +1,87 @@
+ruby_version: 2.2.2
+
+app_name: application_example
+# user for deploy on remote machine (user will be create in scripts)
+user: username
+user_password: qwerty 
+database_username: dbusername
+database_password: qwerty
+database_backup: "{{ app_name }}_production.dump"
+### Maill server for example
+mail_server: mail.nic.ru
+mail_port: 25
+mail_user: noReply@gmail.com
+mail_pass: qwerty
+#Name of webserver
+webserver_name: applicationexample.com
+# ДHome directory
+home_dir: "/home/{{ user }}"
+# Directory for Rbenv
+rbenv_root: "{{ home_dir }}/.rbenv"
+max_threads: 8
+max_workers: 1  ## Dependes on number CPU cores  - grep -c processor /proc/cpuinfo
+
+# Destination to application
+deploy_directory: "/usr/local/src/{{ app_name }}"
+config_directory: "{{ deploy_directory }}/shared/config"
+tmp_directory: "{{ deploy_directory }}/shared/tmp"
+log_directory: "{{ deploy_directory }}/shared/log"
+pid_directory: "{{ tmp_directory }}/pids"
+## ssh public key from our local machine
+my_current_machine_pub: id_rsa.pub
+## ssh public key for github/bitbucket
+deploy_rsa_pub: id_rsa_deploy.pub
+
+ssl_srv_cert: www.applicationexample.com.SSL123.pem
+ssl_private_key: www.applicationexample.com.key
+ssl_public_csr: applicationexample.com.csr
+ssl_password: qwerty
+
+## Ruby from source
+rubyTmpDir: /usr/local/src
+rubyUrl: http://cache.ruby-lang.org/pub/ruby/2.2/ruby-2.2.2.tar.gz
+rubyCompressedFile: ruby-2.2.2.tar.gz
+rubyName: ruby-2.2.2
+tmpRubyPath: "{{rubyTmpDir}}/{{rubyName}}"
+
+# Install Monit
+MonitTmpDir: /usr/local/src
+MonitName: 5.14
+MonitUrl: "https://mmonit.com/monit/dist/binary/{{ MonitName }}/monit-{{ MonitName }}-linux-x64.tar.gz"
+tmpMonitPath: "{{MonitTmpDir}}/monit-{{MonitName}}"
+
+# Install Redis
+redisTmpDir: /usr/local/src
+redisUrl: http://download.redis.io/redis-stable.tar.gz
+redisCompressedFile: redis-stable.tar.gz
+redisName: redis-stable
+tmpRedisPath: "{{redisTmpDir}}/{{redisName}}"
+redis_password: qwerty
+redis_dir: "{{ deploy_directory }}/redis"
+redis_port: 6370
+
+#Install ElasticSearch
+elastic_tar_url: https://download.elasticsearch.org/elasticsearch/release/org/elasticsearch/distribution/tar/elasticsearch/2.1.0/elasticsearch-2.1.0.tar.gz
+elasticTmpDir: /usr/local/src
+elasticCompressedFile: elasticsearch-2.1.0.tar.gz
+elasticName: elasticsearch-2.1.0
+ElasticPath: "{{elasticTmpDir}}/{{elasticName}}"
+elasticPluginUrl: http://dl.bintray.com/content/imotov/elasticsearch-plugins/org/elasticsearch/elasticsearch-analysis-morphology/2.1.0/elasticsearch-analysis-morphology-2.1.0.zip
+elasticHQPluginUrl: https://github.com/royrusso/elasticsearch-HQ/archive/master.zip
+
+JDKurl: http://download.oracle.com/otn-pub/java/jdk/8u65-b17/jdk-8u65-linux-x64.tar.gz
+JDKTmpDir: /usr/local/src
+JDKCompressedFile: jdk-8u65-linux-x64.tar.gz
+JDKName: jdk-8u65-linux-x64
+JDKPath: "{{JDKTmpDir}}/{{JDKName}}"
+################
+
+
+#created via python  password: echo "import crypt; print crypt.crypt('YOURPASS', '$6$YOURSALT')" | python -
+# <%= ENV["SECRET_KEY_BASE"] %>
+## rake secret
+secret_key:  qwerty
+secret_token: qwerty
+secret_token_default: qwerty
+secret_key_base: qwerty
+devise_secret_token: qwerty

@@ -1,0 +1,101 @@
+---
+  ## Здесь мы устанавливаем СУБД Postgresql и копируем заранее подготовленные конфиги
+  ## roles/database/templates/pg_hba.conf.j2 и roles/database/templates/postgresql.conf.j2
+  ## а также копируем скрипт roles/database/templates/pg_create_role.sql и
+  ## запускаем его для создания пользователя бд.
+
+  - name: Install PostgreSQL dependencies
+    action: apt pkg={{item}} state=latest
+    with_items:
+      - python-pycurl
+      - python-psycopg2
+      - language-pack-ru-base
+      - language-pack-ru
+
+  - name: Install python-software-properties
+    apt: pkg=python-software-properties state=latest
+
+  - name: Add PostgreSQL repo key
+    apt_key: url=http://apt.postgresql.org/pub/repos/apt/ACCC4CF8.asc
+
+  - name: Add PostgreSQL repo
+    apt_repository: repo='deb http://apt.postgresql.org/pub/repos/apt/ precise-pgdg main'
+
+  - name: Install PostgreSQL
+    apt: pkg=postgresql-9.3 state=latest update_cache=true
+
+  - name: Install PostgreSQL Contirb for Extensions
+    apt: pkg=postgresql-contrib-9.3 state=latest
+
+  - name: Install PostgreSQL Server-Dev for Extensions
+    apt: pkg=postgresql-server-dev-9.3 state=latest
+
+  - name: Install PostgreSQL Admin Panel for Extensions
+    apt: pkg=pgadmin3 state=latest
+
+  - name: Copy valid pg_hba.conf
+    template: src=pg_hba.conf.j2 dest=/etc/postgresql/9.3/main/pg_hba.conf force=yes owner=postgres group=postgres mode=0644
+
+  - name: Copy valid postgresql.conf
+    template: src=postgresql.conf.j2 dest=/etc/postgresql/9.3/main/postgresql.conf force=yes owner=postgres group=postgres mode=0644
+
+  - name: Restart PostgreSQL
+    command: service postgresql restart
+
+  ## Если при этом будет ошибка
+  ## LANGUAGE = (unset)
+
+  ## То нужно вручную отредактировать файл  /etc/environment  и /etc/default/locale и перезагрузиться
+  ## Добавив туда нужные переменные, например
+  ## LANGUAGE="ru_RU.UTF-8"
+  ## LC_ALL="ru_RU.UTF-8"
+  ## И можно переустановить языковые пакеты
+  # sudo apt-get install language-pack-ru-base language-pack-ru
+
+
+  ##############################
+  ## Копируем конфиг DB  для rails, с какой базой ему работать, но еще нужно указать, чтобы он этот конфиг взял, вместо обычного /config/database.yml
+  - name: 'postgresql | copy database.yml'
+    template: src=database.yml.j2 dest='{{ deploy_directory }}/shared/config/database.yml' owner={{ user }} group={{ user }} mode=0644 force=yes
+    tags:
+      - databaseyml
+
+  ## другая версия этих действий по созданию пользователя и базы данных
+  #- name: 'postgresql | check user'
+  #  shell: 'psql -U postgres -c "\copyright"'
+  #  register: 'postgres_login'
+  #  ignore_errors: yes
+  #- name: 'postgresql | create database'
+  #  shell: 'createdb -U postgres -O postgres -E UTF8 -l en_US.UTF-8 {{ name }}_production'
+  #  when: 'postgres_login|failed'
+
+  - name: Create db user
+    action: template src=pg_create_role.sql.j2 dest=/tmp/pg_create_role.sql mode=0777 owner={{ user }} group={{ user }} force=yes
+  - action: shell sudo -u postgres psql -f /tmp/pg_create_role.sql -o /tmp/pg_create_role.out
+  - action: file path=/tmp/pg_create_role.sql state=absent
+
+  - name: postgresql - create db for production mode
+    sudo_user: postgres
+    postgresql_db: name="{{ app_name }}_production" encoding="UTF-8" lc_collate="ru_RU.UTF-8" lc_ctype="ru_RU.UTF-8" owner={{ database_username }} template="template0"
+    tags:
+      - createdb
+
+
+  ##Перенос БД между серверами
+  ## http://www.postgresql.org/docs/9.3/static/app-dropdb.html
+  ## http://www.postgresql.org/docs/9.3/static/app-pgdump.html
+  ## http://www.postgresql.org/docs/9.3/static/app-pgrestore.html
+ 
+
+  - name: postgresql | copy back_up file to server
+    copy: src={{ database_backup }} dest="{{ home_dir }}/{{ database_backup }}" mode=0644 owner={{ user }} group={{ user }}
+    tags:
+      - backup
+
+  ## Команда почему то повисает при выполнении, придется выполнять вручную
+  #- name: postgresql | Restore back_up file to production DB
+  #  sudo_user: postgres
+  #  ##action: shell sudo -u postgres pg_restore -d -O {{ app_name }}_production "{{ home_dir }}/{{ database_backup }}"
+  #  action: shell sudo pg_restore --verbose --no-acl --no-owner -U {{ database_username }} -W {{ database_password }} -d {{ app_name }}_production "{{ home_dir }}/{{ database_backup }}"
+  #  tags:
+  #    - backup

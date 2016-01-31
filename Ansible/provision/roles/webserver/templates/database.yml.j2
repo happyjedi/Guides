@@ -1,0 +1,9 @@
+production:
+  adapter: postgresql
+  username: {{ database_username }}  ##postgres
+  password: {{ database_password }}
+  encoding: utf8 ##unicode
+  pool: 8
+  database: {{ app_name }}_production
+  ##host: localhost
+  ##port: 5433

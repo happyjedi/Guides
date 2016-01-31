@@ -1,0 +1,4 @@
+process puma with pidfile "{{deploy_directory}}/shared/tmp/puma.pid"
+  start program = "/bin/su -u {{ user }} -c 'cd {{deploy_directory}}/current && ( RACK_ENV=production /usr/bin/env bundle exec puma -C {{deploy_directory}}/shared/config/puma.rb --daemon )'"
+  stop program = "/bin/su -u {{ user }} -c 'cd {{deploy_directory}}/current && ( bundle exec pumactl -P {{deploy_directory}}/shared/tmp/puma.pid stop)'"
+  group puma

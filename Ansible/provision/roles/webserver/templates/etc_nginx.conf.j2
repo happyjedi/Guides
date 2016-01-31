@@ -1,0 +1,73 @@
+user                            www-data;
+pid                             /run/nginx.pid;
+worker_processes                auto;
+worker_priority                 -5;
+timer_resolution                100ms;
+
+events {
+    use                        epoll; ## Обычно nginx сам выбирает оптимальный вариант
+    worker_connections          2048;
+}
+
+http {
+    ## https://gist.github.com/mikhailov/3052776
+    ## habrahabr.ru post 198982
+    ## http://habrahabr.ru/post/168739/
+    ## Для защиты Web-сервера от перегрузки и попыток осуществить DoS-атаку
+
+    limit_conn_zone             $binary_remote_addr zone=addr:10m; # Описываем зону, в которой будут храниться состояния сессий. Зона размером 1 Мб может хранить около 32000 состояний, мы устанавливаем ее размер равным 10 Мб
+    limit_req_zone              $binary_remote_addr zone=one:10m rate=20r/s; ##позволим в среднем не более 10 запросов в секунду.        
+
+    access_log                  /var/log/nginx/{{ webserver_name }}.access.log; ## off;
+    error_log                   /var/log/nginx/{{ webserver_name }}.error.log;
+
+    client_max_body_size        10m; # Максимальный размер тела запроса клиента 10Mb, прописанный в поле Content-Length заголовка. Если сервер должен поддерживать загрузку файлов, это значение необходимо увеличить
+    client_body_buffer_size     128K; # Максимальный размер буфера для хранения тела запроса клиента
+    client_header_buffer_size   8k; # Максимальный размер буфера для хранения заголовков запроса клиента
+    large_client_header_buffers 4 8k; # Количество и размер буферов для чтения большого заголовка запроса клиента
+    client_body_timeout         10; # Таймаут при чтении тела запроса клиента
+    client_header_timeout       10; # Таймаут при чтении заголовка запроса клиента
+    send_timeout                20; # Таймаут при передаче ответа клиенту !!!!!!!!!!!!!1
+
+    include                     mime.types;
+    default_type                application/octet-stream;
+    server_tokens               off; ##Это заставит nginx скрывать информацию о типе и версии Web-сервера
+    sendfile                    on; ## Директива sendfile активирует копирование данных между файловыми дескрипторами
+    tcp_nopush                  on; # После включения sendfile, можно заставить Nginx отправлять заголовки HTTP-ответов одним пакетом, а не отдельным частями.
+    tcp_nodelay                 on;
+    reset_timedout_connection   on; # Чтобы высвободить дополнительную память, выделенную под сокеты, Она разрешит серверу закрывать подключение тех клиентов, которые перестали отвечать.
+    keepalive_timeout           70;  # Timeout for keep-alive connections. Server will close connections after this time.
+    types_hash_max_size         2048;
+
+    open_file_cache max=20000 inactive=30s; ## Кэширование файлов на 20 сек
+    open_file_cache_valid 40s;
+    open_file_cache_min_uses 2;
+    open_file_cache_errors on;
+
+    gzip                        on; ## Включаем сжатие
+    gzip_http_version           1.1;
+    gzip_types                  text/plain text/css application/x-javascript text/xml application/xml application/xml+rss text/javascript application/json;
+    gzip_min_length             256;
+    gzip_comp_level             4;
+    gzip_proxied                any;  #gzip_proxied expired no-cache no-store private auth;
+    gzip_buffers                8 64k;
+    gzip_vary                   on;
+    gzip_disable                "msie6";
+
+    ssl                         on;
+    ssl_certificate             /etc/nginx/sites-available/ssl/{{ ssl_srv_cert }};
+    ssl_certificate_key         /etc/nginx/sites-available/ssl/{{ ssl_private_key }};
+    ssl_protocols               TLSv1 TLSv1.1 TLSv1.2;  ### Ограничим протоколы, для отключения уязвимости в SSL 3.0  CVE-2014-3566
+    ssl_prefer_server_ciphers   on;
+    ssl_session_timeout         15m;
+    ssl_stapling                on;
+    ssl_password_file           /home/{{user}}/keys/pswfile;
+
+    add_header                  Strict-Transport-Security "max-age=63072000; includeSubDomains";
+    add_header                  X-Frame-Options DENY;
+    add_header                  X-Content-Type-Options nosniff;
+    add_header                  X-XSS-Protection "1; mode=block;";
+
+    include                     /etc/nginx/conf.d/*.conf;
+    include                     /etc/nginx/sites-enabled/*;
+}

@@ -1,0 +1,56 @@
+#- name: Install Redis
+#   apt: pkg=redis-server state=stable
+---
+  - name: Install Redis dependencies
+    apt: pkg=tcl8.5 state=latest
+
+  # Install correct version of Redis from Source
+  - name: redis-from-src | ensure directory temporary Redis download directory is present
+    file: state=directory path={{redisTmpDir}}
+
+  - name: redis-from-src | Download Redis source
+    get_url: url={{redisUrl}} dest={{redisTmpDir}}
+
+  - name: redis-from-src | ensure redis is extracted
+    command: tar -xf {{redisCompressedFile}} chdir={{redisTmpDir}} creates={{tmpRedisPath}}
+
+  - name: redis-from-src | ensure redis is compiled
+    command: make chdir={{tmpRedisPath}} creates={{tmpRedisPath}}/src/redis-server
+
+  - name: redis-from-src | ensure redis is installed
+    command: make install chdir={{tmpRedisPath}}/src creates=/usr/local/bin/redis-server
+
+  #- name: redis-from-src | ensure redis-server is installed
+  #  copy: src={{tmpRedisPath}}/src/redis-server dest=/usr/local/bin mode=0644 owner=root group=root
+
+  #- name: redis-from-src | ensure redis-cli is installed
+  #  copy: src={{tmpRedisPath}}/src/redis-cli dest=/usr/local/bin mode=0644 owner=root group=root
+
+  - name: Create Redis directory
+    file: path={{ redis_dir }} owner={{ user }} group={{ user }} state=directory
+
+  - name: Create Redis etc directory
+    file: path=/etc/redis owner={{ user }} group={{ user }} state=directory
+
+  - name: copy redis config file
+    action: template src=redis.conf.j2 dest=/etc/redis/redis.conf owner={{ user }} group={{ user }} force=yes
+    tags:
+      - redis_conf
+
+  #  Добавляем в автозапуск. Но если это сделать то bluepill не сможет перехваитть pid файл. Поэтому временно закомментим
+  #- name: copy redis-server config file
+  #  action: template src=redis-server.conf.j2 dest=/etc/init/redis-server.conf owner={{ user }} group={{ user }} force=yes
+  #  tags:
+  #    - redis_conf
+
+  - name: copy Sidekiq config file
+    action: template src=sidekiq.yml.j2 dest={{ config_directory }}/sidekiq.yml owner={{ user }} group={{ user }} force=yes
+    tags:
+      - sidekiq_conf
+
+  - name: Redis start
+    command: sudo start redis-server
+    tags:
+      - redis_conf
+  ##Теперь мы можем управлять Redisом командами
+  ##sudo start/stop/restart/status redis-server

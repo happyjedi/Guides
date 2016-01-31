@@ -1,0 +1,70 @@
+## /usr/local/src/application_example/current/config/monitoring/bluepill_config.rb
+ENV["RAILS_ENV"] = "production"
+ENV["RACK_ENV"] = "production"
+
+Bluepill.application("application_example", :log_file => "{{ log_directory }}/bluepill.log") do |app|
+
+  app.process("redis-server") do |process|
+    process.group = "redis"
+    process.start_command = "redis-server /etc/redis/redis.conf --port {{ redis_port }}"
+    process.pid_file = "{{ pid_directory }}/redis.pid"
+    process.stop_command = "kill -QUIT {{ '{{' }}PID{{ '}}' }}"
+    ##process.daemonize = true
+    process.start_grace_time = 20.seconds
+    process.stop_grace_time = 20.seconds
+    process.uid = process.gid = '{{ user }}'
+  end
+
+  app.process("sidekiq") do |process|
+    process.working_dir = "{{ deploy_directory }}/current"
+    process.group = "sidekiq"
+    process.start_command = "bundle exec sidekiq -L {{ log_directory }}/sidekiq.log -C {{ config_directory }}/sidekiq.yml -e production" ## можно добавить флаг -d  для daemon
+    process.pid_file = "{{ pid_directory }}/sidekiq.pid"
+    process.stop_command = "kill -QUIT {{ '{{' }}PID{{ '}}' }}"
+    process.daemonize = true
+    process.start_grace_time = 20.seconds
+    process.stop_grace_time = 20.seconds
+    process.uid = process.gid = '{{ user }}'
+    process.checks :mem_usage, :every => 1.minutes, :below => 250.megabytes, :times => [3, 5]
+  end
+
+  app.process("elasticsearch") do |process|
+    process.working_dir = "{{ ElasticPath }}/bin"
+    process.group = "elasticsearch"
+    process.start_command = "{{ ElasticPath }}/bin/elasticsearch -p {{ pid_directory }}/elasticsearch.pid" ## можно добавить флаг -d  для daemon
+    process.pid_file = "{{ pid_directory }}/elasticsearch.pid"
+    process.stop_command = "kill -QUIT {{ '{{' }}PID{{ '}}' }}"
+    process.daemonize = true
+    process.start_grace_time = 40.seconds
+    process.stop_grace_time = 20.seconds
+    process.uid = process.gid = '{{ user }}'
+  end
+
+  app.process("puma") do |process|
+    process.working_dir = "{{ deploy_directory }}/current"
+    process.group = "puma"
+    process.pid_file = "{{ pid_directory }}/puma.pid"
+    process.start_command = "/usr/bin/env bundle exec puma -C {{ config_directory }}/puma.rb"
+    process.stop_command = "bundle exec pumactl -P {{ pid_directory }}/puma.pid stop"
+    process.restart_command = "bundle exec pumactl -P {{ pid_directory }}/puma.pid restart"
+    process.uid = '{{ user }}'
+    process.start_grace_time = 90.seconds
+    process.stop_grace_time = 30.seconds
+    process.restart_grace_time = 120.seconds
+    process.daemonize = true
+
+    process.stdout = process.stderr = "{{ log_directory }}/puma.log"
+
+    process.checks :mem_usage, :every => 1.minutes, :below => 750.megabytes, :times => [3, 5]
+
+=begin
+    process.monitor_children do |child_process|
+      child_process.stop_command = "kill -QUIT {{ '{{' }}PID{{ '}}' }}"
+
+      child_process.checks :mem_usage, :every => 30.seconds, :below => 400.megabytes, :times => [3,4], :fires => :stop
+      child_process.checks :cpu_usage, :every => 30.seconds, :below => 70, :times => [3,4], :fires => :stop
+    end
+=end
+  end
+
+end
