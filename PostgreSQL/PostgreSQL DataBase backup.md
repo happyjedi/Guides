@@ -1,4 +1,4 @@
-# Linux common commands
+# PostgreSQL DataBase backup commands
 
 1. Connect to server(ip address) by ssh and create full database dump
   
