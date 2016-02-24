@@ -11,3 +11,4 @@ List of Guides:
   - [Ansible install](https://github.com/happyjedi/Guides/blob/master/Ansible/Ansible%20install.md)
   - [Ansible scripts for Ruby on Rails server config environment (Linux config + NGINX + Puma + BluePill + Ruby + Rails + Redis + Sidekiq + ElasticSearch + PostgreSQL)](https://github.com/happyjedi/Guides/tree/master/Ansible/provision)
   - [PostgreSQL dump and restore](https://github.com/happyjedi/Guides/blob/master/PostgreSQL/PostgreSQL%20DataBase%20backup.md)
+  - [Learning Russian](https://github.com/happyjedi/Guides/blob/master/Learning%20Russian/Useful%20links.md)
